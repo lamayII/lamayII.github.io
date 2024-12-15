@@ -22,33 +22,28 @@
     </div>
     <script>
   document.getElementById('searchForm').addEventListener('submit', function (event) {
-    event.preventDefault(); // Prevent form reload
+    event.preventDefault(); // Prevent page reload
 
     const form = event.target;
     const formData = new FormData(form);
 
-    // Use the 'action' attribute of the form as the URL
     fetch(form.action, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded', // Set Content-Type header
-      },
-      body: new URLSearchParams(formData), // Convert form data to URL-encoded format
+      mode: 'no-cors', // Prevent CORS error
+      body: new URLSearchParams(formData),
     })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        document.getElementById('result').innerHTML = `<div class="alert alert-success">${data.result}</div>`;
+      .then(() => {
+        // Display success message (response is opaque and cannot be accessed)
+        document.getElementById('result').innerHTML = `
+          <div class="alert alert-success">Request successfully sent. Please check server logs or database for results.</div>`;
       })
       .catch((error) => {
-        document.getElementById('result').innerHTML = `<div class="alert alert-danger">Error: ${error}</div>`;
+        document.getElementById('result').innerHTML = `
+          <div class="alert alert-danger">Error: ${error.message}</div>`;
       });
   });
 </script>
+
 
   </body>
 </html>
