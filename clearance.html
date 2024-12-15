@@ -26,24 +26,34 @@
 
     const form = event.target;
     const formData = new FormData(form);
+    const params = new URLSearchParams();
 
-    fetch(form.action, {
-      method: 'POST',
-      mode: 'no-cors', // Prevent CORS error
-      body: new URLSearchParams(formData),
+    // Convert form data to query parameters
+    for (const pair of formData.entries()) {
+      params.append(pair[0], pair[1]);
+    }
+
+    // Perform a GET request
+    fetch(`${form.action}?${params.toString()}`, {
+      method: 'GET', // GET request
     })
-      .then(() => {
-        // Display success message (response is opaque and cannot be accessed)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json(); // Parse JSON response
+      })
+      .then((data) => {
+        // Display the result from the server
         document.getElementById('result').innerHTML = `
-          <div class="alert alert-success">Request successfully sent. Please check server logs or database for results.</div>`;
+          <div class="alert alert-success">Result: ${data.result || 'No data found.'}</div>`;
       })
       .catch((error) => {
+        // Display error message
         document.getElementById('result').innerHTML = `
           <div class="alert alert-danger">Error: ${error.message}</div>`;
       });
   });
 </script>
-
-
   </body>
 </html>
