@@ -1,59 +1,82 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Validate Security Clearance</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  </head>
-  <body>
-    <div class="container mt-4">
-      <div class="alert alert-info text-center" role="alert">
-        Please enter your security clearance ID to validate your access.
-      </div>
-      <h1 class="mb-4">Validate Security Clearance</h1>
-      <!-- Update the 'action' attribute with the specific URL -->
-      <form id="searchForm" method="POST" action="https://script.google.com/macros/s/AKfycbyPzDlHkmNuEWphRIj35vR5PsFX70dHT_ngb-8hfXHjuof8X4iRwT1acuNXqldt6XUklw/exec">
-        <div class="mb-3">
-          <label for="textInput" class="form-label">Enter Clearance ID:</label>
-          <input type="text" name="textInput" id="textInput" class="form-control" placeholder="Enter ID" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Submit</button>
-      </form>
-      <div id="result" class="mt-3"></div>
-    </div>
-    <script>
-  document.getElementById('searchForm').addEventListener('submit', function (event) {
-    event.preventDefault(); // Prevent page reload
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Display Security Clearance Info</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+</head>
+<body>
+  <div class="container mt-5">
+    <h1>Validate Security Clearance</h1>
+    
+    <form id="searchForm" action="https://script.google.com/macros/s/AKfycbyPzDlHkmNuEWphRIj35vR5PsFX70dHT_ngb-8hfXHjuof8X4iRwT1acuNXqldt6XUklw/exec">
+      <label for="textInput">Enter Security Clearance Data:</label>
+      <input type="text" id="textInput" name="textInput" class="form-control" required>
+      <button type="submit" class="btn btn-primary mt-2">Submit</button>
+    </form>
 
-    const form = event.target;
-    const formData = new FormData(form);
-    const params = new URLSearchParams();
+    <div id="result" class="mt-4"></div>
+  </div>
 
-    // Convert form data to query parameters
-    for (const pair of formData.entries()) {
-      params.append(pair[0], pair[1]);
-    }
+  <script>
+    document.getElementById('searchForm').addEventListener('submit', function (event) {
+      event.preventDefault(); // Prevent page reload
 
-    // Perform a GET request
-    fetch(`${form.action}?${params.toString()}`, {
-      method: 'GET', // GET request
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        return response.json(); // Parse JSON response
+      const form = event.target;
+      const formData = new FormData(form);
+      const params = new URLSearchParams();
+
+      // Convert form data to query parameters
+      for (const pair of formData.entries()) {
+        params.append(pair[0], pair[1]);
+      }
+
+      // Perform a GET request
+      fetch(`${form.action}?${params.toString()}`, {
+        method: 'GET', // GET request
       })
-      .then((data) => {
-        // Display the result from the server
-        document.getElementById('result').innerHTML = `
-          <div class="alert alert-success">Result: ${data.result || 'No data found.'}</div>`;
-      })
-      .catch((error) => {
-        // Display error message
-        document.getElementById('result').innerHTML = `
-          <div class="alert alert-danger">Error: ${error.message}</div>`;
-      });
-  });
-</script>
-  </body>
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+          return response.json(); // Parse JSON response
+        })
+        .then((data) => {
+          // Assume the data.result is a string like "Player SSC-TS ACTIVE"
+          const parts = data.result.split(' '); // Split string by spaces
+          
+          // Map the array to the card
+          const username = parts[0];
+          const clearanceLevel = parts[1];
+          const status = parts[2];
+
+          // Create HTML for the card
+          const resultHTML = `
+            <div class="card" style="width: 18rem;">
+              <div class="card-body">
+                <h5 class="card-title">Username: ${username}</h5>
+                <h6 class="card-subtitle mb-2 text-muted">
+                  Clearance Level: <span class="badge bg-primary">${clearanceLevel}</span>
+                </h6>
+                <p class="card-text">
+                  Status: <span class="badge bg-success">${status}</span>
+                </p>
+              </div>
+            </div>
+          `;
+
+          // Display the result card
+          document.getElementById('result').innerHTML = resultHTML;
+        })
+        .catch((error) => {
+          document.getElementById('result').innerHTML = `
+            <div class="alert alert-danger">Error: ${error.message}</div>`;
+        });
+    });
+  </script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+</body>
 </html>
+
