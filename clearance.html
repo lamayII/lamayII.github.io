@@ -43,7 +43,7 @@
           return response.json(); // Parse JSON response
         })
         .then((data) => {
-          if (data.result == "No matching data") { data.result = "N/A N/A N/A" }
+          if (data.result == "No matching data found.") { data.result = "N/A N/A N/A" }
           // Assume the data.result is a string like "Player SSC-TS ACTIVE"
           const parts = data.result.split(' '); // Split string by spaces
           
