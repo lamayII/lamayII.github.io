@@ -13,6 +13,11 @@
 </head>
 <body data-bs-theme="dark">
   <div class="container mt-5">
+    <!-- Error Banner -->
+    <div id="errorBanner" class="alert alert-danger alert-dismissible fade show" role="alert" style="display: none;">
+      <span id="errorMessage"></span>
+    </div>
+
     <h1>Validate Security Clearance</h1>
     
     <form id="searchForm" action="https://script.google.com/macros/s/AKfycbyPzDlHkmNuEWphRIj35vR5PsFX70dHT_ngb-8hfXHjuof8X4iRwT1acuNXqldt6XUklw/exec">
@@ -26,14 +31,68 @@
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading...</span>
       </div>
+      <p class="mt-2">Fetching clearance data and user information...</p>
     </div>
 
     <div id="result" class="mt-4"></div>
   </div>
 
   <script>
-    document.getElementById('searchForm').addEventListener('submit', function (event) {
-      event.preventDefault(); // Prevent page reload
+    function showError(message) {
+      const errorBanner = document.getElementById('errorBanner');
+      const errorMessage = document.getElementById('errorMessage');
+      
+      errorMessage.textContent = message;
+      errorBanner.style.display = 'block';
+      
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        errorBanner.style.display = 'none';
+      }, 5000);
+    }
+
+    async function getUserIdFromUsername(username) {
+      const response = await fetch(`https://users.roblox.com/v1/usernames/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          usernames: [username]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to resolve username: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.data || data.data.length === 0) {
+        throw new Error('Username not found on Roblox');
+      }
+
+      return data.data[0].id;
+    }
+
+    async function getUserThumbnail(userId) {
+      const response = await fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=false`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to get user thumbnail: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.data || data.data.length === 0) {
+        throw new Error('Thumbnail not found');
+      }
+
+      return data.data[0].imageUrl;
+    }
+
+    document.getElementById('searchForm').addEventListener('submit', async function (event) {
+      event.preventDefault();
 
       const form = event.target;
       const formData = new FormData(form);
@@ -47,59 +106,86 @@
       // Show the loading spinner
       document.getElementById('loadingSpinner').style.display = 'block';
 
-      // Clear previous results
+      // Clear previous results and errors
       document.getElementById('result').innerHTML = '';
+      document.getElementById('errorBanner').style.display = 'none';
 
-      // Perform a GET request
-      fetch(`${form.action}?${params.toString()}`, {
-        method: 'GET', // GET request
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
+      try {
+        // Step 1: Get clearance data
+        const clearanceResponse = await fetch(`${form.action}?${params.toString()}`, {
+          method: 'GET',
+        });
+
+        if (!clearanceResponse.ok) {
+          throw new Error(`Clearance API error: ${clearanceResponse.status}`);
+        }
+
+        const clearanceData = await clearanceResponse.json();
+        
+        if (clearanceData.result === "No matching data found.") {
+          clearanceData.result = "N/A N/A N/A";
+        }
+
+        // Parse clearance data
+        const parts = clearanceData.result.split(' ');
+        const username = parts[0];
+        const clearanceLevel = parts[1];
+        const status = parts[2];
+
+        let thumbnailUrl = 'https://via.placeholder.com/150x150?text=No+Image';
+        let robloxUserId = null;
+
+        // Step 2: Only try to get Roblox data if username is not N/A
+        if (username !== 'N/A') {
+          try {
+            // Get Roblox User ID
+            robloxUserId = await getUserIdFromUsername(username);
+            
+            // Get User Thumbnail
+            thumbnailUrl = await getUserThumbnail(robloxUserId);
+          } catch (robloxError) {
+            console.warn('Roblox API error:', robloxError.message);
+            showError(`Roblox API Error: ${robloxError.message}`);
+            // Continue with placeholder image
           }
-          return response.json(); // Parse JSON response
-        })
-        .then((data) => {
-          if (data.result == "No matching data found.") { data.result = "N/A N/A N/A"; }
-          // Assume the data.result is a string like "Player SSC-TS ACTIVE"
-          const parts = data.result.split(' '); // Split string by spaces
-          
-          // Map the array to the card
-          const username = parts[0];
-          const clearanceLevel = parts[1];
-          const status = parts[2];
+        }
 
-          // Create HTML for the card
-          const resultHTML = `
-            <div class="card" style="width: 18rem;">
-              <div class="card-body">
-                <h5 class="card-title">Username: ${username}</h5>
-                <h6 class="card-subtitle mb-2 text-muted">
-                  Clearance Level: <span class="badge bg-primary">${clearanceLevel}</span>
-                </h6>
-                <p class="card-text">
-                  Status: <span class="badge bg-success">${status}</span>
-                </p>
+        // Create enhanced HTML card
+        const resultHTML = `
+          <div class="card mx-auto" style="max-width: 400px;">
+            <div class="card-header text-center">
+              <img src="${thumbnailUrl}" alt="${username} Avatar" class="rounded-circle mb-2" style="width: 100px; height: 100px; object-fit: cover;">
+            </div>
+            <div class="card-body text-center">
+              <h5 class="card-title">${username}</h5>
+              ${robloxUserId ? `<p class="text-muted small mb-2">Roblox ID: ${robloxUserId}</p>` : ''}
+              <div class="mb-3">
+                <span class="badge bg-primary fs-6">${clearanceLevel}</span>
+              </div>
+              <div class="mb-2">
+                <span class="badge ${status === 'ACTIVE' ? 'bg-success' : status === 'INACTIVE' ? 'bg-danger' : 'bg-secondary'} fs-6">${status}</span>
               </div>
             </div>
-          `;
+          </div>
+        `;
 
-          // Display the result card
-          document.getElementById('result').innerHTML = resultHTML;
-        })
-        .catch((error) => {
-          document.getElementById('result').innerHTML = `
-            <div class="alert alert-danger">Error: ${error.message}</div>`;
-        })
-        .finally(() => {
-          // Hide the loading spinner
-          document.getElementById('loadingSpinner').style.display = 'none';
-        });
+        document.getElementById('result').innerHTML = resultHTML;
+
+      } catch (error) {
+        console.error('Error:', error);
+        showError(error.message);
+        
+        document.getElementById('result').innerHTML = `
+          <div class="alert alert-danger">
+            <strong>Error:</strong> ${error.message}
+          </div>`;
+      } finally {
+        // Hide the loading spinner
+        document.getElementById('loadingSpinner').style.display = 'none';
+      }
     });
   </script>
   
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 </body>
 </html>
-
