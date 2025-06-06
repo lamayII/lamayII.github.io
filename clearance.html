@@ -52,53 +52,32 @@
     }
 
     async function getUserIdFromUsername(username) {
-      // Alternative approach: Use Roblox's public profile API (GET request)
-      // This bypasses the POST request CORS issue
-      try {
-        const proxyUrl = 'https://api.allorigins.win/get?url=';
-        const targetUrl = encodeURIComponent(`https://www.roblox.com/users/profile/profileheader?username=${username}`);
-        
-        const response = await fetch(`${proxyUrl}${targetUrl}`);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to resolve username: ${response.status}`);
-        }
+      // Using CORS proxy with the correct POST request format
+      const proxyUrl = 'https://api.allorigins.win/raw?url=';
+      const targetUrl = encodeURIComponent(`https://users.roblox.com/v1/usernames/users`);
+      
+      const response = await fetch(`${proxyUrl}${targetUrl}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          usernames: [username],
+          excludeBannedUsers: true
+        })
+      });
 
-        const data = await response.json();
-        const htmlContent = data.contents;
-        
-        // Extract user ID from the HTML response
-        const userIdMatch = htmlContent.match(/data-userid="(\d+)"/);
-        if (!userIdMatch) {
-          throw new Error('Username not found on Roblox');
-        }
-        
-        return parseInt(userIdMatch[1]);
-      } catch (error) {
-        // Fallback: Try to extract from profile URL pattern
-        try {
-          const proxyUrl = 'https://api.allorigins.win/get?url=';
-          const profileUrl = encodeURIComponent(`https://www.roblox.com/users/search?keyword=${username}`);
-          
-          const response = await fetch(`${proxyUrl}${profileUrl}`);
-          if (!response.ok) {
-            throw new Error('Username lookup failed');
-          }
-          
-          const data = await response.json();
-          const htmlContent = data.contents;
-          
-          // Look for user profile links in search results
-          const profileMatch = htmlContent.match(/\/users\/(\d+)\/profile/);
-          if (profileMatch) {
-            return parseInt(profileMatch[1]);
-          }
-          
-          throw new Error('Username not found on Roblox');
-        } catch (fallbackError) {
-          throw new Error('Unable to resolve Roblox username');
-        }
+      if (!response.ok) {
+        throw new Error(`Failed to resolve username: ${response.status}`);
       }
+
+      const data = await response.json();
+      
+      if (!data.data || data.data.length === 0) {
+        throw new Error('Username not found on Roblox');
+      }
+
+      return data.data[0].id;
     }
 
     async function getUserThumbnail(userId) {
